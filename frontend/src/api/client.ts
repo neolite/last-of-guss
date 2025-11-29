@@ -46,18 +46,10 @@ export interface Round {
   status: "cooldown" | "active" | "finished";
 }
 
-export interface LeaderboardEntry {
-  rank: number;
-  username: string;
-  score: number;
-  isMe: boolean;
-}
-
 export interface RoundDetails extends Round {
   myTaps: number;
   myScore: number;
   winner: { username: string; score: number } | null;
-  leaderboard: LeaderboardEntry[];
 }
 
 export interface TapResult {

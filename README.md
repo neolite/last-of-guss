@@ -97,7 +97,7 @@ PORT=3000
 | GET | /auth/me | Текущий пользователь | auth |
 | GET | /rounds | Список раундов | auth |
 | POST | /rounds | Создать раунд | admin |
-| GET | /rounds/:id | Детали раунда + leaderboard | auth |
+| GET | /rounds/:id | Детали раунда (winner, myScore) | auth |
 | POST | /rounds/:id/tap | Тап по гусю | auth |
 
 ## Архитектура

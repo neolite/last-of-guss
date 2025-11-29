@@ -63,12 +63,10 @@ export async function roundsRoutes(app: FastifyInstance): Promise<void> {
     const myTaps = isNikita ? 0 : (playerRound?.taps ?? 0);
     const myScore = isNikita ? 0 : (playerRound?.score ?? 0);
 
-    // Get leaderboard and winner if round is finished
+    // Get winner if round is finished
     let winner = null;
-    let leaderboard: { rank: number; username: string; score: number; isMe: boolean }[] = [];
-    
     if (status === "finished") {
-      const allPlayers = await db.query.playerRounds.findMany({
+      const topPlayer = await db.query.playerRounds.findFirst({
         where: eq(schema.playerRounds.roundId, id),
         orderBy: [desc(schema.playerRounds.score)],
         with: {
@@ -76,18 +74,9 @@ export async function roundsRoutes(app: FastifyInstance): Promise<void> {
         },
       });
 
-      leaderboard = allPlayers.map((p, index) => ({
-        rank: index + 1,
-        username: p.user.username,
-        score: p.user.role === "nikita" ? 0 : p.score,
-        isMe: p.userId === request.user!.userId,
-      }));
-
-      // Winner is first place (excluding nikita with 0 score)
-      const topPlayer = leaderboard.find(p => p.score > 0);
-      if (topPlayer) {
+      if (topPlayer && topPlayer.score > 0 && topPlayer.user.role !== "nikita") {
         winner = {
-          username: topPlayer.username,
+          username: topPlayer.user.username,
           score: topPlayer.score,
         };
       }
@@ -99,7 +88,6 @@ export async function roundsRoutes(app: FastifyInstance): Promise<void> {
       myTaps,
       myScore,
       winner,
-      leaderboard,
     });
   });
 }
