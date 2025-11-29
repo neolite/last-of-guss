@@ -58,10 +58,17 @@ export async function roundsRoutes(app: FastifyInstance): Promise<void> {
         sql`${schema.playerRounds.roundId} = ${id} AND ${schema.playerRounds.userId} = ${request.user!.userId}`,
     });
 
-    // Get winner if round is finished
+    // For nikita, show zeros
+    const isNikita = request.user!.role === "nikita";
+    const myTaps = isNikita ? 0 : (playerRound?.taps ?? 0);
+    const myScore = isNikita ? 0 : (playerRound?.score ?? 0);
+
+    // Get leaderboard and winner if round is finished
     let winner = null;
+    let leaderboard: { rank: number; username: string; score: number; isMe: boolean }[] = [];
+    
     if (status === "finished") {
-      const topPlayer = await db.query.playerRounds.findFirst({
+      const allPlayers = await db.query.playerRounds.findMany({
         where: eq(schema.playerRounds.roundId, id),
         orderBy: [desc(schema.playerRounds.score)],
         with: {
@@ -69,18 +76,22 @@ export async function roundsRoutes(app: FastifyInstance): Promise<void> {
         },
       });
 
-      if (topPlayer && topPlayer.score > 0) {
+      leaderboard = allPlayers.map((p, index) => ({
+        rank: index + 1,
+        username: p.user.username,
+        score: p.user.role === "nikita" ? 0 : p.score,
+        isMe: p.userId === request.user!.userId,
+      }));
+
+      // Winner is first place (excluding nikita with 0 score)
+      const topPlayer = leaderboard.find(p => p.score > 0);
+      if (topPlayer) {
         winner = {
-          username: topPlayer.user.username,
+          username: topPlayer.username,
           score: topPlayer.score,
         };
       }
     }
-
-    // For nikita, show zeros
-    const isNikita = request.user!.role === "nikita";
-    const myTaps = isNikita ? 0 : (playerRound?.taps ?? 0);
-    const myScore = isNikita ? 0 : (playerRound?.score ?? 0);
 
     return reply.send({
       ...round,
@@ -88,6 +99,7 @@ export async function roundsRoutes(app: FastifyInstance): Promise<void> {
       myTaps,
       myScore,
       winner,
+      leaderboard,
     });
   });
 }

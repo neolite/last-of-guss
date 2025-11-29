@@ -23,6 +23,9 @@ export function RoundsListPage() {
 
   useEffect(() => {
     fetchRounds();
+    // Poll every second to detect new rounds
+    const interval = setInterval(fetchRounds, 1000);
+    return () => clearInterval(interval);
   }, []);
 
   const handleCreateRound = async () => {
