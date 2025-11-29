@@ -5,7 +5,7 @@ import {
   timestamp,
   integer,
   pgEnum,
-  uniqueIndex,
+  unique,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
@@ -40,7 +40,7 @@ export const playerRounds = pgTable(
     taps: integer("taps").notNull().default(0),
     score: integer("score").notNull().default(0),
   },
-  (table) => [uniqueIndex("player_round_unique_idx").on(table.userId, table.roundId)]
+  (table) => [unique("player_round_unique").on(table.userId, table.roundId)]
 );
 
 // Relations for Drizzle query API
