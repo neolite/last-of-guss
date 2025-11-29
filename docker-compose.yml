@@ -1,0 +1,39 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: last_of_guss
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ./backend
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/last_of_guss
+      JWT_SECRET: super-secret-jwt-key-change-in-production
+      ROUND_DURATION: 60
+      COOLDOWN_DURATION: 30
+      PORT: 3000
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # Scale: docker compose up --scale backend=3
+    deploy:
+      replicas: 1
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
