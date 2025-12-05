@@ -70,9 +70,9 @@ class LocalPlayer {
       this.velocity.y = 0;
     }
 
-    // World bounds (Shipment map limits)
-    this.position.x = Math.max(-7.5, Math.min(7.5, this.position.x));
-    this.position.z = Math.max(-21.5, Math.min(21.5, this.position.z));
+    // World bounds (discounter map 30x40)
+    this.position.x = Math.max(-14.5, Math.min(14.5, this.position.x));
+    this.position.z = Math.max(-19.5, Math.min(19.5, this.position.z));
 
     // Collision detection with map geometry
     if (this.collisionDetector) {
@@ -287,10 +287,10 @@ export class GameEngine {
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.autoClear = false; // Manual clear for multi-pass rendering
 
-    // Setup scene
+    // Setup scene (dark indoor store)
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x87CEEB); // Sky blue
-    this.scene.fog = new THREE.Fog(0x87CEEB, 20, 60); // Linear fog for outdoor feel
+    this.scene.background = new THREE.Color(0x0a0a0a); // Dark
+    this.scene.fog = new THREE.Fog(0x0a0a0a, 15, 40); // Dark fog
 
     // Setup camera
     this.camera = new THREE.PerspectiveCamera(

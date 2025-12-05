@@ -897,16 +897,18 @@ export class GameSession {
   }
 
   // Spawn points (F.E.A.R. facility layout)
-  // Spawn points for Shipment map (15x43 arena)
+  // Spawn points for cs_discounter map (30x40 with multiple areas)
   private readonly SPAWN_POINTS: Vec3[] = [
-    { x: -6, y: 1, z: -18 },   // Front-left corner (near container)
-    { x: 6, y: 1, z: -18 },    // Front-right corner
-    { x: -6, y: 1, z: 18 },    // Back-left corner
-    { x: 6, y: 1, z: 18 },     // Back-right corner
-    { x: -3, y: 1, z: 0 },     // Center-left lane
-    { x: 3, y: 1, z: 0 },      // Center-right lane
-    { x: 0, y: 1, z: -10 },    // Front-center
-    { x: 0, y: 1, z: 10 },     // Back-center
+    { x: -10, y: 1, z: -15 },  // Store entrance
+    { x: -8, y: 1, z: -5 },    // Store left aisle
+    { x: 2, y: 1, z: -5 },     // Store right aisle
+    { x: 11, y: 1, z: -5 },    // Office
+    { x: -8, y: 1, z: 10 },    // Warehouse
+    { x: -10, y: 1, z: 16 },   // Parking (T spawn)
+    { x: -5, y: 1, z: 17 },    // Parking center
+    { x: 2, y: 1, z: 16 },     // Parking right
+    { x: 10, y: 1, z: 14 },    // Backyard
+    { x: 0, y: 1, z: 0 },      // Center of map
   ];
 
   // Get smart spawn point (far from enemies)
