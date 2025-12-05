@@ -917,7 +917,7 @@ export class GameEngine {
 
       const rayDir = {
         x: -Math.sin(yaw) * Math.cos(pitch),
-        y: -Math.sin(pitch),
+        y: Math.sin(pitch),  // Fixed: removed negative sign (was inverted)
         z: -Math.cos(yaw) * Math.cos(pitch),
       };
 
