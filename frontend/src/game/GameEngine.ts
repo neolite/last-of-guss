@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { NetworkManager } from './NetworkManager';
 import { InputManager } from './InputManager';
+import { MapGeometry } from './MapGeometry';
 import type { PlayerState, ProjectileState, Vec3, Vec2 } from './types';
 
 // Local player (with client-side prediction)
@@ -183,6 +184,7 @@ export class GameEngine {
 
   private network: NetworkManager;
   private input: InputManager;
+  private map: MapGeometry | null = null;
 
   private localPlayer: LocalPlayer | null = null;
   private remotePlayers: Map<string, RemotePlayer> = new Map();
@@ -294,8 +296,8 @@ export class GameEngine {
   }
 
   private createScene() {
-    // Create F.E.A.R. facility environment
-    this.createFacility();
+    // Create Shipment-style CQB map
+    this.map = new MapGeometry(this.scene);
   }
 
   // ============== F.E.A.R. FACILITY ==============
@@ -1248,5 +1250,11 @@ export class GameEngine {
     this.input.stop();
     this.network.onFlushBatch = null; // Clear friction callback
     this.network.disconnect();
+
+    // Cleanup map
+    if (this.map) {
+      this.map.destroy(this.scene);
+      this.map = null;
+    }
   }
 }
