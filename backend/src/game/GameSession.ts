@@ -897,13 +897,16 @@ export class GameSession {
   }
 
   // Spawn points (F.E.A.R. facility layout)
+  // Spawn points for Shipment map (15x43 arena)
   private readonly SPAWN_POINTS: Vec3[] = [
-    { x: 0, y: 1, z: -16 },    // Room 1 - Garage
-    { x: 0, y: 1, z: 16 },     // Room 2 - Office
-    { x: -5, y: 1, z: 0 },     // Hallway Left
-    { x: 5, y: 1, z: 0 },      // Hallway Right
-    { x: 0, y: 1, z: -8 },     // Hallway Center North
-    { x: 0, y: 1, z: 8 },      // Hallway Center South
+    { x: -6, y: 1, z: -18 },   // Front-left corner (near container)
+    { x: 6, y: 1, z: -18 },    // Front-right corner
+    { x: -6, y: 1, z: 18 },    // Back-left corner
+    { x: 6, y: 1, z: 18 },     // Back-right corner
+    { x: -3, y: 1, z: 0 },     // Center-left lane
+    { x: 3, y: 1, z: 0 },      // Center-right lane
+    { x: 0, y: 1, z: -10 },    // Front-center
+    { x: 0, y: 1, z: 10 },     // Back-center
   ];
 
   // Get smart spawn point (far from enemies)

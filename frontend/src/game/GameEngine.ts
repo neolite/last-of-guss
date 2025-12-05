@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { NetworkManager } from './NetworkManager';
 import { InputManager } from './InputManager';
 import { MapGeometry } from './MapGeometry';
+import { CollisionDetector } from './CollisionDetector';
 import type { PlayerState, ProjectileState, Vec3, Vec2 } from './types';
 
 // Local player (with client-side prediction)
@@ -10,6 +11,11 @@ class LocalPlayer {
   rotation: THREE.Euler;
   velocity: THREE.Vector3;
   mesh: THREE.Mesh;
+  collisionDetector: CollisionDetector | null = null;
+
+  // Capsule collision params
+  private readonly capsuleRadius = 0.5; // Player radius
+  private readonly capsuleHeight = 1.8; // Player height
 
   constructor(scene: THREE.Scene) {
     this.position = new THREE.Vector3(0, 1, 0);
@@ -64,9 +70,30 @@ class LocalPlayer {
       this.velocity.y = 0;
     }
 
-    // World bounds (F.E.A.R. facility limits)
+    // World bounds (Shipment map limits)
     this.position.x = Math.max(-7.5, Math.min(7.5, this.position.x));
     this.position.z = Math.max(-21.5, Math.min(21.5, this.position.z));
+
+    // Collision detection with map geometry
+    if (this.collisionDetector) {
+      const collision = this.collisionDetector.checkCapsuleCollision(
+        this.position,
+        this.capsuleRadius,
+        this.capsuleHeight
+      );
+
+      if (collision) {
+        // Push player out of collision
+        this.position.add(collision);
+
+        // Zero velocity in collision direction (slide along walls)
+        const collisionDir = collision.clone().normalize();
+        const velocityDot = this.velocity.dot(collisionDir);
+        if (velocityDot < 0) {
+          this.velocity.sub(collisionDir.multiplyScalar(velocityDot));
+        }
+      }
+    }
 
     // Update mesh
     this.mesh.position.copy(this.position);
@@ -185,6 +212,7 @@ export class GameEngine {
   private network: NetworkManager;
   private input: InputManager;
   private map: MapGeometry | null = null;
+  private collisionDetector: CollisionDetector | null = null;
 
   private localPlayer: LocalPlayer | null = null;
   private remotePlayers: Map<string, RemotePlayer> = new Map();
@@ -298,6 +326,9 @@ export class GameEngine {
   private createScene() {
     // Create Shipment-style CQB map
     this.map = new MapGeometry(this.scene);
+
+    // Initialize collision detector with map colliders
+    this.collisionDetector = new CollisionDetector(this.map.getColliders());
   }
 
   // ============== F.E.A.R. FACILITY ==============
@@ -760,6 +791,11 @@ export class GameEngine {
 
       // Create local player
       this.localPlayer = new LocalPlayer(this.scene);
+
+      // Set collision detector for local player
+      if (this.collisionDetector) {
+        this.localPlayer.collisionDetector = this.collisionDetector;
+      }
 
       // Start input capture
       this.input.start();
