@@ -100,6 +100,18 @@ export class NetworkManager {
         this.emit('respawn', message);
         break;
 
+      case 'match_countdown':
+        this.emit('match_countdown', message);
+        break;
+
+      case 'match_start':
+        this.emit('match_start', message);
+        break;
+
+      case 'match_end':
+        this.emit('match_end', message);
+        break;
+
       default:
         console.warn('[NetworkManager] Unknown message type:', (message as any).type);
     }

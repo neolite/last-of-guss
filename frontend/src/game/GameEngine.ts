@@ -201,6 +201,17 @@ export class GameEngine {
   }) => void) | null = null;
   public onHitMarker: (() => void) | null = null;
 
+  // Match state callbacks
+  public onMatchStateUpdate: ((state: 'waiting' | 'countdown' | 'active' | 'finished', timeRemaining?: number) => void) | null = null;
+  public onMatchCountdown: ((countdown: number) => void) | null = null;
+  public onMatchEnd: ((scoreboard: Array<{
+    playerId: string;
+    playerName: string;
+    kills: number;
+    deaths: number;
+    placement: number;
+  }>, winnerId: string | null, winnerName: string | null) => void) | null = null;
+
   // Visual effects
   private muzzleFlashTime: number = 0;
   private muzzleFlashLight: THREE.PointLight | null = null;
@@ -777,6 +788,11 @@ export class GameEngine {
 
       // Sync projectiles (fireballs) from server
       this.syncProjectiles(snapshot.projectiles);
+
+      // Update match state from snapshot
+      if (this.onMatchStateUpdate && snapshot.matchState) {
+        this.onMatchStateUpdate(snapshot.matchState, snapshot.matchTimeRemaining);
+      }
     });
 
     this.network.on('player_leave', (data: { playerId: string }) => {
@@ -837,6 +853,44 @@ export class GameEngine {
         if (this.onHealthUpdate) {
           this.onHealthUpdate(100);
         }
+      }
+    });
+
+    // Match events
+    this.network.on('match_countdown', (data: { countdown: number }) => {
+      console.log(`[GameEngine] Match countdown: ${data.countdown}s`);
+      if (this.onMatchCountdown) {
+        this.onMatchCountdown(data.countdown);
+      }
+      if (this.onMatchStateUpdate) {
+        this.onMatchStateUpdate('countdown', undefined);
+      }
+    });
+
+    this.network.on('match_start', (data: { duration: number; startTime: number; endTime: number }) => {
+      console.log(`[GameEngine] Match started! Duration: ${data.duration}ms`);
+      if (this.onMatchStateUpdate) {
+        this.onMatchStateUpdate('active', data.duration);
+      }
+    });
+
+    this.network.on('match_end', (data: {
+      winnerId: string | null;
+      winnerName: string | null;
+      scoreboard: Array<{
+        playerId: string;
+        playerName: string;
+        kills: number;
+        deaths: number;
+        placement: number;
+      }>;
+    }) => {
+      console.log(`[GameEngine] Match ended! Winner: ${data.winnerName || 'None'}`);
+      if (this.onMatchEnd) {
+        this.onMatchEnd(data.scoreboard, data.winnerId, data.winnerName);
+      }
+      if (this.onMatchStateUpdate) {
+        this.onMatchStateUpdate('finished', undefined);
       }
     });
   }
