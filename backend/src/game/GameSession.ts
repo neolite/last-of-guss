@@ -14,6 +14,9 @@ import type {
   DamageEvent,
   DeathEvent,
   RespawnEvent,
+  MatchCountdownEvent,
+  MatchStartEvent,
+  MatchEndEvent,
 } from './types.js';
 
 // Player on server
@@ -31,6 +34,7 @@ interface ServerPlayer {
   weaponId: string;        // Current weapon
   kills: number;           // Kill count
   deaths: number;          // Death count
+  spawnProtectionUntil: number; // Timestamp when spawn protection ends (0 = no protection)
 }
 
 // Sanity check constants
@@ -48,6 +52,7 @@ const WEAPON_DAMAGE: Record<string, number> = {
 const PLAYER_HITBOX_RADIUS = 0.4; // Player capsule radius
 const PLAYER_HEIGHT = 1.8; // Player capsule height (from feet to head)
 const RESPAWN_DELAY = 3000; // 3 seconds
+const SPAWN_PROTECTION_DURATION = 2000; // 2 seconds invulnerability after spawn
 
 // Projectile constants
 const PROJECTILE_SPEED = 25;         // units per second (faster than old 12)
@@ -75,6 +80,14 @@ interface ServerProjectile {
   lifetime: number;    // Remaining lifetime (seconds)
 }
 
+// Match state
+enum MatchState {
+  WAITING = 'waiting',      // Waiting for players
+  COUNTDOWN = 'countdown',  // 5 second countdown before match start
+  ACTIVE = 'active',        // Match in progress
+  FINISHED = 'finished',    // Match ended, showing results
+}
+
 export class GameSession {
   private players: Map<string, ServerPlayer> = new Map();
   private projectiles: Map<string, ServerProjectile> = new Map();
@@ -87,8 +100,17 @@ export class GameSession {
   private historyBuffer: HistoricalFrame[] = [];
   private readonly MAX_HISTORY_FRAMES = 10;
 
-  constructor(public sessionId: string) {
-    console.log(`[GameSession] Created session: ${sessionId}`);
+  // Match state
+  private matchState: MatchState = MatchState.WAITING;
+  private matchDuration: number = 5 * 60 * 1000; // 5 minutes default
+  private matchStartTime: number = 0;
+  private matchEndTime: number = 0;
+  private countdownStartTime: number = 0;
+  private readonly COUNTDOWN_DURATION = 5000; // 5 seconds
+
+  constructor(public sessionId: string, matchDurationMinutes: number = 5) {
+    console.log(`[GameSession] Created session: ${sessionId} (${matchDurationMinutes} min)`);
+    this.matchDuration = matchDurationMinutes * 60 * 1000;
   }
 
   // Start the game loop
@@ -112,21 +134,24 @@ export class GameSession {
   addPlayer(playerId: string, playerName: string, socket: WebSocket) {
     console.log(`[GameSession] Player joined: ${playerName} (${playerId})`);
 
-    // Create player at spawn position (Room 1 - Garage, matching F.E.A.R.)
+    // Create player at smart spawn position
+    const spawnPos = this.getSpawnPoint();
+    const now = Date.now();
     const player: ServerPlayer = {
       id: playerId,
       name: playerName,
       socket,
-      position: { x: 0, y: 1, z: -16 }, // Spawn in Room 1
+      position: spawnPos,
       rotation: { x: 0, y: 0 },
       velocity: { x: 0, y: 0, z: 0 },
-      lastUpdateTime: Date.now(),
+      lastUpdateTime: now,
       // Combat fields
       health: 100,
       isAlive: true,
       weaponId: 'rifle',  // Default weapon
       kills: 0,
       deaths: 0,
+      spawnProtectionUntil: now + SPAWN_PROTECTION_DURATION, // 2 sec protection
     };
 
     this.players.set(playerId, player);
@@ -277,9 +302,16 @@ export class GameSession {
     this.tick++;
 
     const dt = 1 / this.tickRate; // Delta time in seconds (0.0333s at 30Hz)
+    const now = Date.now();
 
-    // Update projectiles (movement + collisions)
-    this.updateProjectiles(dt);
+    // Update match state
+    this.updateMatchState(now);
+
+    // Only update gameplay if match is active
+    if (this.matchState === MatchState.ACTIVE) {
+      // Update projectiles (movement + collisions)
+      this.updateProjectiles(dt);
+    }
 
     // Save current frame to history (for lag compensation)
     this.saveToHistory();
@@ -287,6 +319,113 @@ export class GameSession {
     // Client-authoritative: positions already updated in handlePlayerMessage
     // Server just broadcasts current state to all clients
     this.broadcastSnapshot();
+  }
+
+  // Update match state machine
+  private updateMatchState(now: number) {
+    switch (this.matchState) {
+      case MatchState.WAITING:
+        // Start countdown when we have 2+ players
+        if (this.players.size >= 2) {
+          this.startCountdown();
+        }
+        break;
+
+      case MatchState.COUNTDOWN:
+        // Check if countdown finished
+        if (now >= this.countdownStartTime + this.COUNTDOWN_DURATION) {
+          this.startMatch();
+        }
+        break;
+
+      case MatchState.ACTIVE:
+        // Check if match time expired
+        if (now >= this.matchEndTime) {
+          this.endMatch();
+        }
+        break;
+
+      case MatchState.FINISHED:
+        // TODO: Could auto-restart match after X seconds
+        break;
+    }
+  }
+
+  // Start countdown (5 seconds before match)
+  private startCountdown() {
+    this.matchState = MatchState.COUNTDOWN;
+    this.countdownStartTime = Date.now();
+    console.log(`[GameSession] Countdown started (${this.COUNTDOWN_DURATION / 1000}s)`);
+
+    // Reset all player stats
+    this.players.forEach((player) => {
+      player.kills = 0;
+      player.deaths = 0;
+    });
+
+    // Broadcast countdown event
+    const countdownEvent: MatchCountdownEvent = {
+      type: 'match_countdown',
+      countdown: this.COUNTDOWN_DURATION / 1000,
+    };
+    this.broadcast(countdownEvent);
+  }
+
+  // Start actual match
+  private startMatch() {
+    this.matchState = MatchState.ACTIVE;
+    this.matchStartTime = Date.now();
+    this.matchEndTime = this.matchStartTime + this.matchDuration;
+    console.log(`[GameSession] Match started! Duration: ${this.matchDuration / 1000}s`);
+
+    // Broadcast match start event
+    const matchStartEvent: MatchStartEvent = {
+      type: 'match_start',
+      duration: this.matchDuration,
+      startTime: this.matchStartTime,
+      endTime: this.matchEndTime,
+    };
+    this.broadcast(matchStartEvent);
+  }
+
+  // End match and determine winner
+  private endMatch() {
+    this.matchState = MatchState.FINISHED;
+    console.log(`[GameSession] Match ended!`);
+
+    // Build scoreboard sorted by kills (descending)
+    const scoreboard = Array.from(this.players.values())
+      .map((player) => ({
+        playerId: player.id,
+        playerName: player.name,
+        kills: player.kills,
+        deaths: player.deaths,
+        placement: 0, // Will be set below
+      }))
+      .sort((a, b) => b.kills - a.kills); // Sort by kills descending
+
+    // Assign placements
+    scoreboard.forEach((entry, index) => {
+      entry.placement = index + 1;
+    });
+
+    // Find winner (first in scoreboard)
+    const winner = scoreboard.length > 0 ? scoreboard[0] : null;
+
+    if (winner) {
+      console.log(`[GameSession] Winner: ${winner.playerName} with ${winner.kills} kills!`);
+    }
+
+    // Broadcast match end event
+    const matchEndEvent: MatchEndEvent = {
+      type: 'match_end',
+      winnerId: winner?.playerId || null,
+      winnerName: winner?.playerName || null,
+      scoreboard,
+    };
+    this.broadcast(matchEndEvent);
+
+    // TODO: Save results to database
   }
 
   // Update all projectiles (physics + collision detection)
@@ -313,6 +452,13 @@ export class GameSession {
       this.players.forEach((player, playerId) => {
         // Skip if already hit or if it's the owner
         if (hitPlayer || playerId === projectile.ownerId || !player.isAlive) return;
+
+        // Check spawn protection
+        const now = Date.now();
+        if (now < player.spawnProtectionUntil) {
+          // Player has spawn protection - skip damage
+          return;
+        }
 
         // Sphere-capsule collision (projectile is sphere, player is capsule)
         const distance = this.distanceToPlayerCapsule(
@@ -479,10 +625,15 @@ export class GameSession {
 
   // Broadcast snapshot to all players
   private broadcastSnapshot() {
+    const now = Date.now();
+    const matchTimeRemaining = this.matchState === MatchState.ACTIVE
+      ? Math.max(0, this.matchEndTime - now)
+      : undefined;
+
     const snapshot: Snapshot = {
       type: 'snapshot',
       tick: this.tick,
-      timestamp: Date.now(),
+      timestamp: now,
       players: Array.from(this.players.values()).map((p) => ({
         id: p.id,
         position: { ...p.position },
@@ -502,6 +653,8 @@ export class GameSession {
         createdAt: proj.createdAt,
         lifetime: proj.lifetime,
       })),
+      matchState: this.matchState,
+      matchTimeRemaining,
     };
 
     this.broadcast(snapshot);
@@ -743,21 +896,72 @@ export class GameSession {
     return closestCap;
   }
 
-  // Respawn player at spawn point
+  // Spawn points (F.E.A.R. facility layout)
+  private readonly SPAWN_POINTS: Vec3[] = [
+    { x: 0, y: 1, z: -16 },    // Room 1 - Garage
+    { x: 0, y: 1, z: 16 },     // Room 2 - Office
+    { x: -5, y: 1, z: 0 },     // Hallway Left
+    { x: 5, y: 1, z: 0 },      // Hallway Right
+    { x: 0, y: 1, z: -8 },     // Hallway Center North
+    { x: 0, y: 1, z: 8 },      // Hallway Center South
+  ];
+
+  // Get smart spawn point (far from enemies)
+  private getSpawnPoint(): Vec3 {
+    if (this.players.size === 0) {
+      // First player - use first spawn
+      return { ...this.SPAWN_POINTS[0] };
+    }
+
+    // Find spawn point farthest from all alive players
+    let bestSpawn = this.SPAWN_POINTS[0];
+    let maxMinDistance = 0;
+
+    for (const spawnPoint of this.SPAWN_POINTS) {
+      // Calculate minimum distance to any alive player
+      let minDistance = Infinity;
+
+      for (const player of this.players.values()) {
+        if (!player.isAlive) continue;
+
+        const dx = spawnPoint.x - player.position.x;
+        const dy = spawnPoint.y - player.position.y;
+        const dz = spawnPoint.z - player.position.z;
+        const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
+
+        if (distance < minDistance) {
+          minDistance = distance;
+        }
+      }
+
+      // Choose spawn with maximum minimum distance (farthest from all enemies)
+      if (minDistance > maxMinDistance) {
+        maxMinDistance = minDistance;
+        bestSpawn = spawnPoint;
+      }
+    }
+
+    return { ...bestSpawn };
+  }
+
+  // Respawn player at smart spawn point
   private respawnPlayer(playerId: string) {
     const player = this.players.get(playerId);
     if (!player) return;
 
+    const now = Date.now();
+
     // Reset player state
     player.health = 100;
     player.isAlive = true;
+    player.spawnProtectionUntil = now + SPAWN_PROTECTION_DURATION; // 2 sec protection
 
-    // Spawn at Room 1 (same as initial spawn)
-    player.position = { x: 0, y: 1, z: -16 };
+    // Smart spawn selection (far from enemies)
+    player.position = this.getSpawnPoint();
     player.rotation = { x: 0, y: 0 };
     player.velocity = { x: 0, y: 0, z: 0 };
 
-    console.log(`[GameSession] ${player.name} respawned`);
+    console.log(`[GameSession] ${player.name} respawned at (${player.position.x.toFixed(1)}, ${player.position.y.toFixed(1)}, ${player.position.z.toFixed(1)}) with spawn protection`);
 
     // Broadcast respawn event
     const respawnEvent: RespawnEvent = {

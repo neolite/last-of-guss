@@ -72,6 +72,9 @@ export interface Snapshot {
   timestamp: number;   // Server timestamp
   players: PlayerState[];
   projectiles: ProjectileState[];  // Active projectiles (fireballs)
+  // Match state info
+  matchState: 'waiting' | 'countdown' | 'active' | 'finished';
+  matchTimeRemaining?: number;  // Milliseconds remaining (only during active match)
 }
 
 // Player connected event
@@ -119,6 +122,34 @@ export interface RespawnEvent {
   position: Vec3;        // Spawn position
 }
 
+// Match countdown event (5 seconds before match starts)
+export interface MatchCountdownEvent {
+  type: 'match_countdown';
+  countdown: number;     // Seconds remaining
+}
+
+// Match start event
+export interface MatchStartEvent {
+  type: 'match_start';
+  duration: number;      // Match duration in milliseconds
+  startTime: number;     // Timestamp when match started
+  endTime: number;       // Timestamp when match will end
+}
+
+// Match end event (with final scoreboard)
+export interface MatchEndEvent {
+  type: 'match_end';
+  winnerId: string | null;    // Winner player ID (or null if tie)
+  winnerName: string | null;  // Winner name
+  scoreboard: Array<{
+    playerId: string;
+    playerName: string;
+    kills: number;
+    deaths: number;
+    placement: number;         // 1st, 2nd, 3rd, etc
+  }>;
+}
+
 // Union type for all server messages
 export type ServerMessage =
   | Snapshot
@@ -127,7 +158,10 @@ export type ServerMessage =
   | WelcomeMessage
   | DamageEvent
   | DeathEvent
-  | RespawnEvent;
+  | RespawnEvent
+  | MatchCountdownEvent
+  | MatchStartEvent
+  | MatchEndEvent;
 
 // Union type for all client messages
 export type ClientMessage = PositionBatch | FireCommand;
