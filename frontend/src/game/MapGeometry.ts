@@ -19,10 +19,42 @@ export class MapGeometry {
   private meshes: THREE.Object3D[] = [];
 
   constructor(scene: THREE.Scene) {
+    this.createLighting(scene);
     this.createGround(scene);
     this.createBoundaryWalls(scene);
     this.createContainers(scene);
     this.createCenterCover(scene);
+  }
+
+  /**
+   * Create lighting setup
+   */
+  private createLighting(scene: THREE.Scene) {
+    // Ambient light for base visibility
+    const ambient = new THREE.AmbientLight(0xffffff, 0.8);
+    scene.add(ambient);
+    this.meshes.push(ambient);
+
+    // Directional light (sun) for shadows
+    const sun = new THREE.DirectionalLight(0xffffff, 1.2);
+    sun.position.set(10, 20, 10);
+    sun.castShadow = true;
+    sun.shadow.mapSize.width = 2048;
+    sun.shadow.mapSize.height = 2048;
+    sun.shadow.camera.near = 0.5;
+    sun.shadow.camera.far = 50;
+    sun.shadow.camera.left = -25;
+    sun.shadow.camera.right = 25;
+    sun.shadow.camera.top = 25;
+    sun.shadow.camera.bottom = -25;
+    scene.add(sun);
+    this.meshes.push(sun);
+
+    // Additional fill light from opposite side
+    const fill = new THREE.DirectionalLight(0x8899ff, 0.4);
+    fill.position.set(-10, 10, -10);
+    scene.add(fill);
+    this.meshes.push(fill);
   }
 
   /**

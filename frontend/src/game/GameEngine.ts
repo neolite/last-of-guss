@@ -242,6 +242,9 @@ export class GameEngine {
     placement: number;
   }>, winnerId: string | null, winnerName: string | null) => void) | null = null;
 
+  // Current match state
+  private matchState: 'waiting' | 'countdown' | 'active' | 'finished' = 'waiting';
+
   // Visual effects
   private muzzleFlashTime: number = 0;
   private muzzleFlashLight: THREE.PointLight | null = null;
@@ -284,10 +287,10 @@ export class GameEngine {
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.autoClear = false; // Manual clear for multi-pass rendering
 
-    // Setup scene (F.E.A.R. atmosphere)
+    // Setup scene
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x010101); // Almost black
-    this.scene.fog = new THREE.FogExp2(0x080505, 0.025); // Exponential fog for F.E.A.R. feel
+    this.scene.background = new THREE.Color(0x87CEEB); // Sky blue
+    this.scene.fog = new THREE.Fog(0x87CEEB, 20, 60); // Linear fog for outdoor feel
 
     // Setup camera
     this.camera = new THREE.PerspectiveCamera(
@@ -828,8 +831,11 @@ export class GameEngine {
       this.syncProjectiles(snapshot.projectiles);
 
       // Update match state from snapshot
-      if (this.onMatchStateUpdate && snapshot.matchState) {
-        this.onMatchStateUpdate(snapshot.matchState, snapshot.matchTimeRemaining);
+      if (snapshot.matchState) {
+        this.matchState = snapshot.matchState;
+        if (this.onMatchStateUpdate) {
+          this.onMatchStateUpdate(snapshot.matchState, snapshot.matchTimeRemaining);
+        }
       }
     });
 
@@ -981,6 +987,11 @@ export class GameEngine {
     this.input.onFire = () => {
       if (!this.localPlayer) return;
 
+      // Can't shoot during waiting or countdown
+      if (this.matchState === 'waiting' || this.matchState === 'countdown') {
+        return;
+      }
+
       // Check ammo
       if (this.ammoCount <= 0 || this.isReloading) {
         console.log('[GameEngine] Out of ammo or reloading!');
@@ -1026,6 +1037,11 @@ export class GameEngine {
 
     // Setup reload callback
     this.input.onReload = () => {
+      // Can't reload during waiting or countdown
+      if (this.matchState === 'waiting' || this.matchState === 'countdown') {
+        return;
+      }
+
       if (this.isReloading || this.ammoCount === this.maxAmmo) {
         console.log('[GameEngine] Cannot reload (already reloading or full)');
         return;
