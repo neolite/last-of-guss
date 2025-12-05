@@ -24,6 +24,20 @@ export function GamePrototypePage() {
   const [reloadProgress, setReloadProgress] = useState(0);
   const [isReloading, setIsReloading] = useState(false);
 
+  // Match state
+  const [matchState, setMatchState] = useState<'waiting' | 'countdown' | 'active' | 'finished'>('waiting');
+  const [matchTimeRemaining, setMatchTimeRemaining] = useState<number | undefined>(undefined);
+  const [countdown, setCountdown] = useState<number | undefined>(undefined);
+  const [scoreboard, setScoreboard] = useState<Array<{
+    playerId: string;
+    playerName: string;
+    kills: number;
+    deaths: number;
+    placement: number;
+  }> | undefined>(undefined);
+  const [winnerId, setWinnerId] = useState<string | null>(null);
+  const [winnerName, setWinnerName] = useState<string | null>(null);
+
   useEffect(() => {
     if (!canvasRef.current) return;
 
@@ -52,6 +66,20 @@ export function GamePrototypePage() {
     engine.onReloadProgress = (progress, reloading) => {
       setReloadProgress(progress);
       setIsReloading(reloading);
+    };
+
+    // Match state callbacks
+    engine.onMatchStateUpdate = (state, timeRemaining) => {
+      setMatchState(state);
+      setMatchTimeRemaining(timeRemaining);
+    };
+    engine.onMatchCountdown = (count) => {
+      setCountdown(count);
+    };
+    engine.onMatchEnd = (board, wId, wName) => {
+      setScoreboard(board);
+      setWinnerId(wId);
+      setWinnerName(wName);
     };
 
     // Start the engine
@@ -119,6 +147,12 @@ export function GamePrototypePage() {
           maxAmmo={maxAmmo}
           reloadProgress={reloadProgress}
           isReloading={isReloading}
+          matchState={matchState}
+          matchTimeRemaining={matchTimeRemaining}
+          countdown={countdown}
+          scoreboard={scoreboard}
+          winnerId={winnerId}
+          winnerName={winnerName}
         />
       )}
     </div>

@@ -16,9 +16,30 @@ interface HUDProps {
   maxAmmo?: number;
   reloadProgress?: number;
   isReloading?: boolean;
+  // Match state
+  matchState?: 'waiting' | 'countdown' | 'active' | 'finished';
+  matchTimeRemaining?: number; // milliseconds
+  countdown?: number; // seconds for countdown
+  scoreboard?: Array<{
+    playerId: string;
+    playerName: string;
+    kills: number;
+    deaths: number;
+    placement: number;
+  }>;
+  winnerId?: string | null;
+  winnerName?: string | null;
 }
 
-export function HUD({ health, kills, deaths, killfeed, showHitMarker, ammo = 30, maxAmmo = 30, reloadProgress = 0, isReloading = false }: HUDProps) {
+export function HUD({ health, kills, deaths, killfeed, showHitMarker, ammo = 30, maxAmmo = 30, reloadProgress = 0, isReloading = false, matchState = 'waiting', matchTimeRemaining, countdown, scoreboard, winnerId, winnerName }: HUDProps) {
+  // Format time as MM:SS
+  const formatTime = (ms: number) => {
+    const totalSeconds = Math.ceil(ms / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  };
+
   return (
     <div
       style={{
@@ -297,6 +318,189 @@ export function HUD({ health, kills, deaths, killfeed, showHitMarker, ammo = 30,
           </div>
         )}
       </div>
+
+      {/* Match timer - top center */}
+      {matchState === 'active' && matchTimeRemaining !== undefined && (
+        <div
+          style={{
+            position: 'absolute',
+            top: '20px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            background: 'rgba(0, 0, 0, 0.7)',
+            padding: '12px 24px',
+            borderRadius: '6px',
+            border: '2px solid rgba(255, 255, 255, 0.3)',
+            fontSize: '24px',
+            fontWeight: 'bold',
+            color: matchTimeRemaining < 30000 ? '#ff0' : '#fff',
+          }}
+        >
+          {formatTime(matchTimeRemaining)}
+        </div>
+      )}
+
+      {/* Waiting for players */}
+      {matchState === 'waiting' && (
+        <div
+          style={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            background: 'rgba(0, 0, 0, 0.8)',
+            padding: '32px 48px',
+            borderRadius: '8px',
+            border: '2px solid rgba(255, 255, 255, 0.4)',
+            textAlign: 'center',
+          }}
+        >
+          <div style={{ fontSize: '28px', fontWeight: 'bold', marginBottom: '16px' }}>
+            WAITING FOR PLAYERS...
+          </div>
+          <div style={{ fontSize: '16px', color: '#888' }}>
+            Match starts when 2+ players join
+          </div>
+        </div>
+      )}
+
+      {/* Countdown */}
+      {matchState === 'countdown' && countdown !== undefined && (
+        <div
+          style={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            background: 'rgba(0, 0, 0, 0.8)',
+            padding: '48px 64px',
+            borderRadius: '8px',
+            border: '3px solid rgba(255, 0, 0, 0.6)',
+            textAlign: 'center',
+          }}
+        >
+          <div style={{ fontSize: '20px', color: '#888', marginBottom: '12px' }}>
+            MATCH STARTING IN
+          </div>
+          <div
+            style={{
+              fontSize: '72px',
+              fontWeight: 'bold',
+              color: '#f00',
+              textShadow: '0 0 20px rgba(255, 0, 0, 0.8)',
+            }}
+          >
+            {Math.ceil(countdown)}
+          </div>
+        </div>
+      )}
+
+      {/* Match ended - Scoreboard */}
+      {matchState === 'finished' && scoreboard && (
+        <div
+          style={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            background: 'rgba(0, 0, 0, 0.9)',
+            padding: '32px',
+            borderRadius: '8px',
+            border: '3px solid rgba(255, 215, 0, 0.8)',
+            minWidth: '500px',
+            maxHeight: '70vh',
+            overflowY: 'auto',
+            pointerEvents: 'auto',
+          }}
+        >
+          {/* Header */}
+          <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+            <div style={{ fontSize: '32px', fontWeight: 'bold', color: '#ffd700', marginBottom: '8px' }}>
+              MATCH ENDED
+            </div>
+            {winnerName && (
+              <div style={{ fontSize: '20px', color: '#0f0' }}>
+                Winner: <span style={{ fontWeight: 'bold' }}>{winnerName}</span>
+              </div>
+            )}
+          </div>
+
+          {/* Scoreboard table */}
+          <div>
+            {/* Header row */}
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: '60px 1fr 80px 80px 80px',
+                padding: '8px 12px',
+                background: 'rgba(255, 255, 255, 0.1)',
+                borderRadius: '4px',
+                marginBottom: '8px',
+                fontSize: '12px',
+                fontWeight: 'bold',
+                color: '#888',
+              }}
+            >
+              <div>RANK</div>
+              <div>PLAYER</div>
+              <div style={{ textAlign: 'center' }}>KILLS</div>
+              <div style={{ textAlign: 'center' }}>DEATHS</div>
+              <div style={{ textAlign: 'center' }}>K/D</div>
+            </div>
+
+            {/* Player rows */}
+            {scoreboard.map((entry) => (
+              <div
+                key={entry.playerId}
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '60px 1fr 80px 80px 80px',
+                  padding: '12px',
+                  background:
+                    entry.playerId === winnerId
+                      ? 'rgba(255, 215, 0, 0.2)'
+                      : 'rgba(255, 255, 255, 0.05)',
+                  borderRadius: '4px',
+                  marginBottom: '4px',
+                  border:
+                    entry.playerId === winnerId
+                      ? '1px solid rgba(255, 215, 0, 0.5)'
+                      : '1px solid rgba(255, 255, 255, 0.1)',
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: '18px',
+                    fontWeight: 'bold',
+                    color:
+                      entry.placement === 1
+                        ? '#ffd700'
+                        : entry.placement === 2
+                        ? '#c0c0c0'
+                        : entry.placement === 3
+                        ? '#cd7f32'
+                        : '#fff',
+                  }}
+                >
+                  #{entry.placement}
+                </div>
+                <div style={{ fontSize: '16px', fontWeight: 'bold' }}>{entry.playerName}</div>
+                <div style={{ textAlign: 'center', color: '#0f0', fontSize: '16px' }}>
+                  {entry.kills}
+                </div>
+                <div style={{ textAlign: 'center', color: '#f00', fontSize: '16px' }}>
+                  {entry.deaths}
+                </div>
+                <div style={{ textAlign: 'center', fontSize: '16px' }}>
+                  {entry.deaths === 0
+                    ? entry.kills.toFixed(2)
+                    : (entry.kills / entry.deaths).toFixed(2)}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
