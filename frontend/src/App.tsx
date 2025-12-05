@@ -4,6 +4,7 @@ import { useAuthStore } from "./store/auth";
 import { LoginPage } from "./pages/LoginPage";
 import { RoundsListPage } from "./pages/RoundsListPage";
 import { RoundPage } from "./pages/RoundPage";
+import { GamePrototypePage } from "./pages/GamePrototypePage";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuthStore();
@@ -64,6 +65,7 @@ function App() {
             </ProtectedRoute>
           }
         />
+        <Route path="/game/prototype" element={<GamePrototypePage />} />
       </Routes>
     </BrowserRouter>
   );

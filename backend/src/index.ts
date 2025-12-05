@@ -6,6 +6,7 @@ import { authMiddleware, adminMiddleware } from "./middleware/auth.js";
 import { authRoutes } from "./routes/auth.js";
 import { roundsRoutes } from "./routes/rounds.js";
 import { tapRoutes } from "./routes/tap.js";
+import { GameServer } from "./game/GameServer.js";
 import type { JwtPayload } from "./utils/auth.js";
 
 declare module "fastify" {
@@ -24,7 +25,7 @@ async function main(): Promise<void> {
   });
 
   await app.register(cors, {
-    origin: "http://localhost:5173",
+    origin: /^http:\/\/localhost:\d+$/,  // Allow any localhost port
     credentials: true,
   });
 
@@ -39,12 +40,17 @@ async function main(): Promise<void> {
   await app.register(roundsRoutes);
   await app.register(tapRoutes);
 
+  // Initialize WebSocket game server
+  const gameServer = new GameServer(app);
+  await gameServer.initialize();
+
   // Health check
   app.get("/health", async () => ({ status: "ok" }));
 
   try {
     await app.listen({ port: config.port, host: "0.0.0.0" });
     console.log(`Server running on port ${config.port}`);
+    console.log(`WebSocket game server ready at ws://localhost:${config.port}/ws/game`);
   } catch (err) {
     app.log.error(err);
     process.exit(1);
