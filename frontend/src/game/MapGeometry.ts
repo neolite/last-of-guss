@@ -296,7 +296,7 @@ export class MapGeometry {
   /**
    * СКЛАД/РАМПА (Warehouse/Ramp Area)
    */
-  private createWarehouseArea(scene: THREE.Scene) {
+  private createWarehouseArea(_scene: THREE.Scene) {
     // Warehouse area - empty for now (crates removed for bunny hop testing)
   }
 
@@ -470,7 +470,7 @@ export class MapGeometry {
   /**
    * Helper: Create a freezer collider
    */
-  private createFreezer(
+  private _createFreezer(
     scene: THREE.Scene,
     position: THREE.Vector3,
     size: THREE.Vector3,

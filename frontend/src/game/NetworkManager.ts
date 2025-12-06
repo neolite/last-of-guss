@@ -2,7 +2,6 @@ import type {
   PositionUpdate,
   PositionBatch,
   ServerMessage,
-  Snapshot,
   Vec3,
   Vec2,
   FireCommand,

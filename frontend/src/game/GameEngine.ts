@@ -4,7 +4,7 @@ import { InputManager } from './InputManager';
 import { MapGeometry } from './MapGeometry';
 import { CollisionDetector } from './CollisionDetector';
 import { AudioManager, type SpatialAudioSource } from './AudioManager';
-import type { PlayerState, ProjectileState, Vec3, Vec2 } from './types';
+import type { PlayerState, ProjectileState } from './types';
 
 // Local player (with client-side prediction)
 class LocalPlayer {
@@ -337,7 +337,7 @@ export class GameEngine {
   private readonly FIREBALL_LIFETIME = 8;
   private walkCycle: number = 0; // For synchronized weapon bob
 
-  constructor(private canvas: HTMLCanvasElement) {
+  constructor(canvas: HTMLCanvasElement) {
     // Setup renderer
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
     this.renderer.setSize(window.innerWidth, window.innerHeight);
@@ -397,7 +397,7 @@ export class GameEngine {
   }
 
   // ============== F.E.A.R. FACILITY ==============
-  private createFacility() {
+  private _createFacility() {
     // Layout constants (matching F.E.A.R. engine)
     const ROOM1_Z = -16;
     const ROOM2_Z = 16;
@@ -795,7 +795,7 @@ export class GameEngine {
         return fb;
       }
     }
-    return null;
+    return undefined;
   }
 
   private returnFireball(fb: typeof this.fireballPool[0]) {
@@ -847,7 +847,7 @@ export class GameEngine {
     }
   }
 
-  private shootFireball() {
+  private _shootFireball() {
     const fb = this.getFireball();
     if (!fb || !this.localPlayer) return;
 

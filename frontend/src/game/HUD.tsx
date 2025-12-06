@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+// import { useState, useEffect } from 'react'; // Unused
 
 interface HUDProps {
   health: number;

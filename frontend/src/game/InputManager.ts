@@ -1,4 +1,6 @@
 export class InputManager {
+  private canvas: HTMLCanvasElement;
+
   // Key states
   private keys = {
     forward: false,
@@ -25,7 +27,8 @@ export class InputManager {
   // Reload callback
   public onReload: (() => void) | null = null;
 
-  constructor(private canvas: HTMLCanvasElement) {
+  constructor(canvas: HTMLCanvasElement) {
+    this.canvas = canvas;
     this.setupPointerLock();
     this.setupKeyboardListeners();
     this.setupMouseListeners();
