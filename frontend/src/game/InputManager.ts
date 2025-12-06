@@ -6,7 +6,11 @@ export class InputManager {
     left: false,
     right: false,
     jump: false,
+    sprint: false,
   };
+
+  // Edge-triggered jump (only trigger once per press)
+  private jumpPressed = false;
 
   // Mouse delta (accumulated since last getState)
   private mouseDeltaX = 0;
@@ -70,7 +74,14 @@ export class InputManager {
           }
           break;
         case 'Space':
-          this.keys.jump = true;
+          if (!this.keys.jump) {
+            this.keys.jump = true;
+            this.jumpPressed = true; // Edge trigger
+          }
+          break;
+        case 'ShiftLeft':
+        case 'ShiftRight':
+          this.keys.sprint = true;
           break;
       }
     });
@@ -95,6 +106,10 @@ export class InputManager {
           break;
         case 'Space':
           this.keys.jump = false;
+          break;
+        case 'ShiftLeft':
+        case 'ShiftRight':
+          this.keys.sprint = false;
           break;
       }
     });
@@ -141,12 +156,14 @@ export class InputManager {
       moveY,
       lookDeltaX: this.mouseDeltaX,
       lookDeltaY: this.mouseDeltaY,
-      jump: this.keys.jump,
+      jump: this.jumpPressed, // Edge-triggered
+      sprint: this.keys.sprint,
     };
 
-    // Reset mouse delta
+    // Reset mouse delta and jump edge trigger
     this.mouseDeltaX = 0;
     this.mouseDeltaY = 0;
+    this.jumpPressed = false; // Reset after reading
 
     return state;
   }

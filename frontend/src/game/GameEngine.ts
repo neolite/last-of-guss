@@ -20,8 +20,8 @@ class LocalPlayer {
   // Jump mechanics (double jump + air control)
   private isOnGround = false;
   private jumpsLeft = 2; // Double jump
-  private readonly JUMP_FORCE = 7.0;
-  private readonly GRAVITY = -20.0;
+  private readonly JUMP_FORCE = 9.0; // Increased for higher jumps
+  private readonly GRAVITY = -25.0; // Stronger gravity for snappier feel
   private readonly AIR_CONTROL = 0.3; // Air strafe control
 
   constructor(scene: THREE.Scene) {
@@ -40,8 +40,10 @@ class LocalPlayer {
 
   // Apply movement (client-side prediction)
   // NOTE: Called every frame (60fps) for smooth movement
-  applyMovement(moveX: number, moveY: number, lookDeltaX: number, lookDeltaY: number, jump: boolean, dt: number) {
-    const MOVE_SPEED = 5.0;
+  applyMovement(moveX: number, moveY: number, lookDeltaX: number, lookDeltaY: number, jump: boolean, sprint: boolean, dt: number) {
+    const WALK_SPEED = 5.0;
+    const SPRINT_SPEED = 8.0; // Sprint multiplier
+    const MOVE_SPEED = sprint ? SPRINT_SPEED : WALK_SPEED;
     const MOUSE_SENSITIVITY = 0.002;
 
     // Update rotation from mouse
@@ -1117,6 +1119,7 @@ export class GameEngine {
         inputState.lookDeltaX,
         inputState.lookDeltaY,
         inputState.jump,
+        inputState.sprint,
         dt
       );
 
