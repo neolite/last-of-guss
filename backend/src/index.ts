@@ -27,7 +27,7 @@ async function main(): Promise<void> {
 
   await app.register(cors, {
     origin: process.env.NODE_ENV === 'production'
-      ? ['https://last-of-guss-frontend.fly.dev'] // Production frontend
+      ? ['http://85.31.45.127:8080'] // Production VPS frontend
       : /^http:\/\/localhost:\d+$/,  // Dev: allow any localhost port
     credentials: true,
   });
