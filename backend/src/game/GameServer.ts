@@ -24,7 +24,7 @@ export class GameServer {
     console.log('[GameServer] WebSocket routes registered at /ws/game');
   }
 
-  private handleConnection(connection: SocketStream, req: any) {
+  private handleConnection(connection: { socket: WebSocket }, req: any) {
     console.log('[GameServer] New WebSocket connection');
 
     // Generate player ID and name (in real version, get from JWT auth)
