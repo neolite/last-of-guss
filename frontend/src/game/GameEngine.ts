@@ -3,6 +3,7 @@ import { NetworkManager } from './NetworkManager';
 import { InputManager } from './InputManager';
 import { MapGeometry } from './MapGeometry';
 import { CollisionDetector } from './CollisionDetector';
+import { AudioManager, type SpatialAudioSource } from './AudioManager';
 import type { PlayerState, ProjectileState, Vec3, Vec2 } from './types';
 
 // Local player (with client-side prediction)
@@ -14,7 +15,7 @@ class LocalPlayer {
   collisionDetector: CollisionDetector | null = null;
 
   // Capsule collision params
-  private readonly capsuleRadius = 0.5; // Player radius
+  private readonly capsuleRadius = 0.35; // Player radius (reduced for tighter movement)
   private readonly capsuleHeight = 1.8; // Player height
 
   // Jump mechanics (double jump + air control)
@@ -23,6 +24,7 @@ class LocalPlayer {
   private readonly JUMP_FORCE = 9.0; // Increased for higher jumps
   private readonly GRAVITY = -25.0; // Stronger gravity for snappier feel
   private readonly AIR_CONTROL = 0.3; // Air strafe control
+
 
   constructor(scene: THREE.Scene) {
     this.position = new THREE.Vector3(0, 1, 0);
@@ -42,7 +44,7 @@ class LocalPlayer {
   // NOTE: Called every frame (60fps) for smooth movement
   applyMovement(moveX: number, moveY: number, lookDeltaX: number, lookDeltaY: number, jump: boolean, sprint: boolean, dt: number) {
     const WALK_SPEED = 5.0;
-    const SPRINT_SPEED = 8.0; // Sprint multiplier
+    const SPRINT_SPEED = 8.0;
     const MOVE_SPEED = sprint ? SPRINT_SPEED : WALK_SPEED;
     const MOUSE_SENSITIVITY = 0.002;
 
@@ -70,15 +72,32 @@ class LocalPlayer {
     this.velocity.x += (forward.x * moveY + right.x * moveX) * moveForce;
     this.velocity.z += (forward.z * moveY + right.z * moveX) * moveForce;
 
+    // Jump (bunny hop mechanics)
+    if (jump && this.jumpsLeft > 0) {
+      this.jumpsLeft--;
+      this.isOnGround = false;
+
+      // Air jump (bunny hop) - low vertical, high horizontal boost
+      if (this.jumpsLeft === 1) {
+        // This is the SECOND jump (air jump)
+        this.velocity.y = this.JUMP_FORCE / 2; // Half vertical force
+
+        const currentHorizontalSpeed = Math.sqrt(this.velocity.x ** 2 + this.velocity.z ** 2);
+        const BHOP_BOOST = 1.6; // 60% speed boost on air jump
+
+        if (currentHorizontalSpeed > 0.1) {
+          // Boost in the direction player is moving
+          this.velocity.x *= BHOP_BOOST;
+          this.velocity.z *= BHOP_BOOST;
+        }
+      } else {
+        // First jump - normal vertical force
+        this.velocity.y = this.JUMP_FORCE;
+      }
+    }
+
     // Apply gravity
     this.velocity.y += this.GRAVITY * dt;
-
-    // Jump (double jump)
-    if (jump && this.jumpsLeft > 0) {
-      this.velocity.y = this.JUMP_FORCE;
-      this.jumpsLeft--;
-      this.isOnGround = false; // You're jumping, not on ground anymore!
-    }
 
     // Update position
     this.position.add(this.velocity.clone().multiplyScalar(dt));
@@ -96,22 +115,28 @@ class LocalPlayer {
       );
 
       if (collision) {
-        // Push player out of collision
-        this.position.add(collision);
-
-        // Zero velocity in collision direction (slide along walls)
         const collisionDir = collision.clone().normalize();
-        const velocityDot = this.velocity.dot(collisionDir);
-        if (velocityDot < 0) {
-          this.velocity.sub(collisionDir.multiplyScalar(velocityDot));
-        }
 
         // Check if collision is with ground (vertical collision)
-        if (collisionDir.y > 0.7) {
-          // Collision pushed us UP = we hit ground
+        const isGroundCollision = collisionDir.y > 0.7;
+
+        if (isGroundCollision) {
+          // Ground collision: push out normally (including Y)
+          this.position.add(collision);
           this.isOnGround = true;
           this.jumpsLeft = 2;
           this.velocity.y = Math.max(0, this.velocity.y); // Don't go down through floor
+        } else {
+          // Wall/obstacle collision: only push out horizontally (no Y bounce)
+          const horizontalCollision = collision.clone();
+          horizontalCollision.y = 0; // Remove vertical component
+          this.position.add(horizontalCollision);
+        }
+
+        // Zero velocity in collision direction (slide along walls)
+        const velocityDot = this.velocity.dot(collisionDir);
+        if (velocityDot < 0) {
+          this.velocity.sub(collisionDir.multiplyScalar(velocityDot));
         }
       }
     }
@@ -245,6 +270,7 @@ export class GameEngine {
   private input: InputManager;
   private map: MapGeometry | null = null;
   private collisionDetector: CollisionDetector | null = null;
+  private audio: AudioManager;
 
   private localPlayer: LocalPlayer | null = null;
   private remotePlayers: Map<string, RemotePlayer> = new Map();
@@ -303,6 +329,7 @@ export class GameEngine {
     velocity: THREE.Vector3;
     lifetime: number;
     active: boolean;
+    audioSource: SpatialAudioSource | null;
   }> = [];
   private activeFireballs: typeof this.fireballPool = [];
   private readonly FIREBALL_POOL_SIZE = 20;
@@ -353,6 +380,9 @@ export class GameEngine {
     // Setup networking
     this.network = new NetworkManager();
     this.setupNetworkHandlers();
+
+    // Setup audio
+    this.audio = new AudioManager();
 
     // Handle window resize
     window.addEventListener('resize', () => this.onResize());
@@ -745,7 +775,8 @@ export class GameEngine {
         glow,
         velocity: new THREE.Vector3(),
         lifetime: 0,
-        active: false
+        active: false,
+        audioSource: null
       });
     }
   }
@@ -756,6 +787,10 @@ export class GameEngine {
         fb.active = true;
         fb.group.visible = true;
         fb.light.intensity = 40;
+
+        // Create 3D spatial audio for fireball
+        fb.audioSource = this.audio.createFireballSound(fb.group.position);
+
         this.activeFireballs.push(fb);
         return fb;
       }
@@ -768,6 +803,13 @@ export class GameEngine {
     fb.id = null;  // Reset server ID
     fb.group.visible = false;
     fb.light.intensity = 0;
+
+    // Stop fireball audio
+    if (fb.audioSource) {
+      fb.audioSource.stop();
+      fb.audioSource = null;
+    }
+
     const idx = this.activeFireballs.indexOf(fb);
     if (idx > -1) this.activeFireballs.splice(idx, 1);
   }
@@ -831,6 +873,9 @@ export class GameEngine {
       if (this.collisionDetector) {
         this.localPlayer.collisionDetector = this.collisionDetector;
       }
+
+      // Initialize audio (requires user interaction)
+      this.audio.init();
 
       // Start input capture
       this.input.start();
@@ -974,8 +1019,9 @@ export class GameEngine {
   async start() {
     console.log('[GameEngine] Starting...');
 
-    // Connect to server
-    await this.network.connect('ws://localhost:3000/ws/game');
+    // Connect to server - use env var in production
+    const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:3000/ws/game';
+    await this.network.connect(WS_URL);
 
     // Sync friction and position updates with batching (30Hz)
     this.network.onFlushBatch = () => {
@@ -1038,6 +1084,9 @@ export class GameEngine {
 
       // Trigger recoil
       this.weaponRecoilTime = performance.now();
+
+      // Play gunshot sound
+      this.audio.playGunshot();
 
       // Calculate ray origin (player position at eye level)
       const rayOrigin = {
@@ -1142,6 +1191,9 @@ export class GameEngine {
 
       // Apply player's rotation to camera
       this.camera.rotation.copy(this.localPlayer.rotation);
+
+      // Update audio listener position and orientation
+      this.audio.setListener(this.camera);
     }
 
     // Update remote players (interpolation)
@@ -1301,6 +1353,12 @@ export class GameEngine {
       fb.group.position.x += fb.velocity.x * delta;
       fb.group.position.y += fb.velocity.y * delta;
       fb.group.position.z += fb.velocity.z * delta;
+
+      // Update spatial audio position and velocity
+      if (fb.audioSource) {
+        fb.audioSource.setPosition(fb.group.position);
+        fb.audioSource.setVelocity(fb.velocity); // Doppler effect!
+      }
 
       fb.lifetime -= delta;
 

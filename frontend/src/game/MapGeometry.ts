@@ -128,6 +128,14 @@ export class MapGeometry {
 
     scene.add(ground);
     this.meshes.push(ground);
+
+    // Add floor collider (thin box at y=0)
+    this.colliders.push({
+      type: 'box',
+      position: new THREE.Vector3(0, -0.05, 0), // Just below ground level
+      size: new THREE.Vector3(30, 0.1, 40),      // Match floor size, thin (0.1m)
+      mesh: ground,
+    });
   }
 
   /**
@@ -289,82 +297,53 @@ export class MapGeometry {
    * СКЛАД/РАМПА (Warehouse/Ramp Area)
    */
   private createWarehouseArea(scene: THREE.Scene) {
-    const crateMaterial = new THREE.MeshStandardMaterial({
-      color: 0x8b7355,
-      roughness: 0.9,
-      metalness: 0.1,
-    });
-
-    // Warehouse crates (marked R in ASCII)
-    const cratePositions = [
-      { x: -8, z: 8 },
-      { x: -5, z: 10 },
-      { x: -2, z: 8 },
-    ];
-
-    for (const pos of cratePositions) {
-      this.createBox(
-        scene,
-        new THREE.Vector3(pos.x, 0.6, pos.z),
-        new THREE.Vector3(1.5, 1.2, 1.5),
-        crateMaterial
-      );
-    }
-
-    // Ramp (slanted platform)
-    const rampGeometry = new THREE.BoxGeometry(3, 0.2, 4);
-    const rampMaterial = new THREE.MeshStandardMaterial({
-      color: 0x666666,
-      roughness: 0.7,
-      metalness: 0.2,
-    });
-    const ramp = new THREE.Mesh(rampGeometry, rampMaterial);
-    ramp.position.set(-8, 0.3, 12);
-    ramp.rotation.x = -0.2; // Slight slope
-    ramp.castShadow = true;
-    ramp.receiveShadow = true;
-    scene.add(ramp);
-    this.meshes.push(ramp);
-
-    this.colliders.push({
-      type: 'box',
-      position: new THREE.Vector3(-8, 0.3, 12),
-      size: new THREE.Vector3(3, 0.2, 4),
-      mesh: ramp,
-    });
+    // Warehouse area - empty for now (crates removed for bunny hop testing)
   }
 
   /**
-   * ПАРКОВКА (Parking Area) - Cars for cover
+   * ПАРКОВКА (Parking Area) - Tall shelves and crates for cover (no low objects!)
    */
   private createParkingArea(scene: THREE.Scene) {
-    const carMaterial = new THREE.MeshStandardMaterial({
-      color: 0x2a4a6a,
-      roughness: 0.4,
-      metalness: 0.6,
+    const shelfMaterial = new THREE.MeshStandardMaterial({
+      color: 0x5a4a3a, // Brown wood
+      roughness: 0.8,
+      metalness: 0.1,
     });
 
-    // Cars (T spawn area, marked in ASCII)
-    const carPositions = [
+    const crateMaterial = new THREE.MeshStandardMaterial({
+      color: 0x6b5a4a, // Lighter wood
+      roughness: 0.9,
+      metalness: 0.05,
+    });
+
+    // Tall shelves (T spawn area) - vertical cover, can't walk under
+    const shelfPositions = [
       { x: -10, z: 15 },
       { x: -5, z: 17 },
       { x: 2, z: 16 },
     ];
 
-    for (const pos of carPositions) {
-      // Car body
+    for (const pos of shelfPositions) {
+      // Tall shelf (full height - no gap to walk under)
       this.createBox(
         scene,
-        new THREE.Vector3(pos.x, 0.6, pos.z),
-        new THREE.Vector3(2, 1.2, 4),
-        carMaterial
+        new THREE.Vector3(pos.x, 1.5, pos.z),   // Centered at 1.5m height
+        new THREE.Vector3(1.5, 3.0, 0.4),       // 1.5m wide, 3m tall, 0.4m deep
+        shelfMaterial
       );
-      // Car roof
+
+      // Wooden crates beside shelves (stacked, also tall)
       this.createBox(
         scene,
-        new THREE.Vector3(pos.x, 1.3, pos.z - 0.5),
-        new THREE.Vector3(1.8, 0.8, 2),
-        carMaterial
+        new THREE.Vector3(pos.x + 2, 0.6, pos.z),  // Next to shelf
+        new THREE.Vector3(0.8, 1.2, 0.8),           // Small crate
+        crateMaterial
+      );
+      this.createBox(
+        scene,
+        new THREE.Vector3(pos.x + 2, 1.8, pos.z),  // Stacked on top
+        new THREE.Vector3(0.8, 1.2, 0.8),
+        crateMaterial
       );
     }
   }

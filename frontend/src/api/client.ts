@@ -1,5 +1,5 @@
-// In Docker: use /api proxy, in dev: use localhost:3000
-const API_BASE = import.meta.env.PROD ? "/api" : "http://localhost:3000";
+// API base URL - use env var in production, localhost in dev
+const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
 interface ApiError {
   error: string;
@@ -57,6 +57,17 @@ export interface TapResult {
   score: number;
 }
 
+export interface GameSession {
+  id: string;
+  name: string;
+  status: "waiting" | "countdown" | "active" | "finished";
+  maxPlayers: number;
+  currentPlayers: number;
+  startedAt: string | null;
+  endedAt: string | null;
+  createdAt: string;
+}
+
 export const api = {
   login: (username: string, password: string) =>
     request<User>("/auth/login", {
@@ -77,4 +88,21 @@ export const api = {
 
   tap: (roundId: string) =>
     request<TapResult>(`/rounds/${roundId}/tap`, { method: "POST" }),
+
+  // Game sessions
+  getSessions: () => request<GameSession[]>("/sessions"),
+
+  createSession: (name?: string, maxPlayers?: number) =>
+    request<GameSession>("/sessions", {
+      method: "POST",
+      body: JSON.stringify({ name, maxPlayers }),
+    }),
+
+  getSession: (id: string) => request<GameSession>(`/sessions/${id}`),
+
+  joinSession: (id: string) =>
+    request<GameSession>(`/sessions/${id}/join`, { method: "POST" }),
+
+  leaveSession: (id: string) =>
+    request<GameSession>(`/sessions/${id}/leave`, { method: "POST" }),
 };

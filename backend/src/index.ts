@@ -6,6 +6,7 @@ import { authMiddleware, adminMiddleware } from "./middleware/auth.js";
 import { authRoutes } from "./routes/auth.js";
 import { roundsRoutes } from "./routes/rounds.js";
 import { tapRoutes } from "./routes/tap.js";
+import { sessionsRoutes } from "./routes/sessions.js";
 import { GameServer } from "./game/GameServer.js";
 import type { JwtPayload } from "./utils/auth.js";
 
@@ -25,7 +26,9 @@ async function main(): Promise<void> {
   });
 
   await app.register(cors, {
-    origin: /^http:\/\/localhost:\d+$/,  // Allow any localhost port
+    origin: process.env.NODE_ENV === 'production'
+      ? ['https://last-of-guss-frontend.fly.dev'] // Production frontend
+      : /^http:\/\/localhost:\d+$/,  // Dev: allow any localhost port
     credentials: true,
   });
 
@@ -39,6 +42,7 @@ async function main(): Promise<void> {
   await app.register(authRoutes);
   await app.register(roundsRoutes);
   await app.register(tapRoutes);
+  await app.register(sessionsRoutes);
 
   // Initialize WebSocket game server
   const gameServer = new GameServer(app);

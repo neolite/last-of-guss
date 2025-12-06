@@ -10,12 +10,24 @@ import {
 import { relations } from "drizzle-orm";
 
 export const userRoleEnum = pgEnum("user_role", ["admin", "survivor", "nikita"]);
+export const sessionStatusEnum = pgEnum("session_status", ["waiting", "countdown", "active", "finished"]);
 
 export const users = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
   username: varchar("username", { length: 255 }).notNull().unique(),
   passwordHash: varchar("password_hash", { length: 255 }).notNull(),
   role: userRoleEnum("role").notNull().default("survivor"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const gameSessions = pgTable("game_sessions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: varchar("name", { length: 255 }).notNull(),
+  status: sessionStatusEnum("status").notNull().default("waiting"),
+  maxPlayers: integer("max_players").notNull().default(8),
+  currentPlayers: integer("current_players").notNull().default(0),
+  startedAt: timestamp("started_at"),
+  endedAt: timestamp("ended_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -65,8 +77,11 @@ export const playerRoundsRelations = relations(playerRounds, ({ one }) => ({
 
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
+export type GameSession = typeof gameSessions.$inferSelect;
+export type NewGameSession = typeof gameSessions.$inferInsert;
 export type Round = typeof rounds.$inferSelect;
 export type NewRound = typeof rounds.$inferInsert;
 export type PlayerRound = typeof playerRounds.$inferSelect;
 export type NewPlayerRound = typeof playerRounds.$inferInsert;
 export type UserRole = "admin" | "survivor" | "nikita";
+export type SessionStatus = "waiting" | "countdown" | "active" | "finished";

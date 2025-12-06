@@ -4,6 +4,7 @@ import { useAuthStore } from "./store/auth";
 import { LoginPage } from "./pages/LoginPage";
 import { RoundsListPage } from "./pages/RoundsListPage";
 import { RoundPage } from "./pages/RoundPage";
+import { SessionsListPage } from "./pages/SessionsListPage";
 import { GamePrototypePage } from "./pages/GamePrototypePage";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -43,12 +44,13 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route
-          path="/"
-          element={
-            isLoading ? null : user ? <Navigate to="/rounds" replace /> : <LoginPage />
-          }
-        />
+        {/* Main page - FPS Sessions */}
+        <Route path="/" element={<SessionsListPage />} />
+        <Route path="/sessions" element={<SessionsListPage />} />
+        <Route path="/game" element={<GamePrototypePage />} />
+
+        {/* Old goous routes (legacy) */}
+        <Route path="/goous" element={isLoading ? null : user ? <Navigate to="/rounds" replace /> : <LoginPage />} />
         <Route
           path="/rounds"
           element={

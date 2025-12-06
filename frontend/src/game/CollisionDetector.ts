@@ -101,8 +101,19 @@ export class CollisionDetector {
         Math.abs(capsulePos.z - boxMin.z),
         Math.abs(capsulePos.z - boxMax.z)
       );
+      const penetrationY = Math.min(
+        Math.abs(capsuleMinY - boxMin.y),
+        Math.abs(capsuleMaxY - boxMax.y)
+      );
 
-      if (penetrationX < penetrationZ) {
+      // Push out in direction of least penetration
+      const minPenetration = Math.min(penetrationX, penetrationZ, penetrationY);
+
+      if (minPenetration === penetrationY) {
+        // Vertical push
+        const dir = capsulePos.y > box.position.y ? 1 : -1;
+        return new THREE.Vector3(0, penetrationY * dir, 0);
+      } else if (minPenetration === penetrationX) {
         const dir = capsulePos.x > box.position.x ? 1 : -1;
         return new THREE.Vector3(penetrationX * dir, 0, 0);
       } else {
@@ -116,9 +127,21 @@ export class CollisionDetector {
     const nx = dx / dist;
     const nz = dz / dist;
 
+    // Calculate vertical penetration (if capsule is above/below box)
+    let verticalPenetration = 0;
+
+    // Check if capsule bottom is penetrating box top
+    if (capsuleMinY < boxMax.y && capsuleMinY > boxMin.y) {
+      verticalPenetration = boxMax.y - capsuleMinY; // Push UP
+    }
+    // Check if capsule top is penetrating box bottom (ceiling)
+    else if (capsuleMaxY > boxMin.y && capsuleMaxY < boxMax.y) {
+      verticalPenetration = boxMin.y - capsuleMaxY; // Push DOWN
+    }
+
     return new THREE.Vector3(
       nx * penetrationDepth,
-      0,
+      verticalPenetration,
       nz * penetrationDepth
     );
   }
