@@ -173,7 +173,7 @@ export class GameSession {
     this.broadcast(joinEvent, playerId); // Exclude new player
 
     // Setup socket handlers
-    socket.on('message', (rawData) => {
+    socket.on('message', (rawData: Buffer) => {
       try {
         const data = JSON.parse(rawData.toString());
         this.handlePlayerMessage(playerId, data);
@@ -186,7 +186,7 @@ export class GameSession {
       this.removePlayer(playerId);
     });
 
-    socket.on('error', (err) => {
+    socket.on('error', (err: Error) => {
       console.error(`[GameSession] Socket error for ${playerId}:`, err);
       this.removePlayer(playerId);
     });

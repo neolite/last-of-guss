@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import type { SocketStream } from '@fastify/websocket';
+import type { WebSocket } from 'ws';
 import { GameSession } from './GameSession.js';
 import { randomUUID } from 'crypto';
 
@@ -17,7 +17,7 @@ export class GameServer {
 
     // WebSocket endpoint for prototype
     // In full version, this would be /ws/game/:sessionId
-    this.app.get('/ws/game', { websocket: true }, (connection: SocketStream, req) => {
+    this.app.get('/ws/game', { websocket: true }, (connection: { socket: WebSocket }, req) => {
       this.handleConnection(connection, req);
     });
 
