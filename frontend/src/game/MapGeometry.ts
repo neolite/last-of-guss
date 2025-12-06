@@ -468,32 +468,6 @@ export class MapGeometry {
   }
 
   /**
-   * Helper: Create a freezer collider
-   */
-  private _createFreezer(
-    scene: THREE.Scene,
-    position: THREE.Vector3,
-    size: THREE.Vector3,
-    material: THREE.Material
-  ) {
-    const geometry = new THREE.BoxGeometry(size.x, size.y, size.z);
-    const mesh = new THREE.Mesh(geometry, material);
-    mesh.position.copy(position);
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
-
-    scene.add(mesh);
-    this.meshes.push(mesh);
-
-    this.colliders.push({
-      type: 'box',
-      position: position.clone(),
-      size: size.clone(),
-      mesh,
-    });
-  }
-
-  /**
    * Helper: Create a generic box collider (crates, cars, etc.)
    */
   private createBox(
