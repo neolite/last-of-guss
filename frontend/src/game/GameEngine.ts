@@ -333,8 +333,6 @@ export class GameEngine {
   }> = [];
   private activeFireballs: typeof this.fireballPool = [];
   private readonly FIREBALL_POOL_SIZE = 20;
-  private readonly FIREBALL_SPEED = 12;
-  private readonly FIREBALL_LIFETIME = 8;
   private walkCycle: number = 0; // For synchronized weapon bob
 
   constructor(canvas: HTMLCanvasElement) {
