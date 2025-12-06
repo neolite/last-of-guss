@@ -77,26 +77,17 @@ class LocalPlayer {
     if (jump && this.jumpsLeft > 0) {
       this.velocity.y = this.JUMP_FORCE;
       this.jumpsLeft--;
+      this.isOnGround = false; // You're jumping, not on ground anymore!
     }
 
     // Update position
     this.position.add(this.velocity.clone().multiplyScalar(dt));
 
-    // Ground constraint and jump reset
-    if (this.position.y <= 1) {
-      this.position.y = 1;
-      this.velocity.y = 0;
-      this.isOnGround = true;
-      this.jumpsLeft = 2; // Reset double jump on ground
-    } else {
-      this.isOnGround = false;
-    }
-
     // World bounds (discounter map 30x40)
     this.position.x = Math.max(-14.5, Math.min(14.5, this.position.x));
     this.position.z = Math.max(-19.5, Math.min(19.5, this.position.z));
 
-    // Collision detection with map geometry
+    // Collision detection with map geometry (BEFORE ground check)
     if (this.collisionDetector) {
       const collision = this.collisionDetector.checkCapsuleCollision(
         this.position,
@@ -114,7 +105,26 @@ class LocalPlayer {
         if (velocityDot < 0) {
           this.velocity.sub(collisionDir.multiplyScalar(velocityDot));
         }
+
+        // Check if collision is with ground (vertical collision)
+        if (collisionDir.y > 0.7) {
+          // Collision pushed us UP = we hit ground
+          this.isOnGround = true;
+          this.jumpsLeft = 2;
+          this.velocity.y = Math.max(0, this.velocity.y); // Don't go down through floor
+        }
       }
+    }
+
+    // Ground constraint (fallback for areas without collision geometry)
+    if (this.position.y <= 1) {
+      this.position.y = 1;
+      this.velocity.y = Math.max(0, this.velocity.y);
+      this.isOnGround = true;
+      this.jumpsLeft = 2; // Reset double jump on ground
+    } else if (!this.collisionDetector) {
+      // If no collision detector, assume airborne when above ground
+      this.isOnGround = false;
     }
 
     // Update mesh
