@@ -15,7 +15,7 @@ export class AudioManager {
   private masterGain: GainNode | null = null;
 
   // Active sounds (for cleanup)
-  private activeSounds: Set<AudioBufferSourceNode> = new Set();
+  private activeSounds: Set<AudioScheduledSourceNode> = new Set();
 
   constructor() {
     // Audio context is created on user interaction (autoplay policy)
