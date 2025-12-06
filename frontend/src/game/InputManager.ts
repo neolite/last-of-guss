@@ -5,6 +5,7 @@ export class InputManager {
     backward: false,
     left: false,
     right: false,
+    jump: false,
   };
 
   // Mouse delta (accumulated since last getState)
@@ -68,6 +69,9 @@ export class InputManager {
             this.onReload();
           }
           break;
+        case 'Space':
+          this.keys.jump = true;
+          break;
       }
     });
 
@@ -88,6 +92,9 @@ export class InputManager {
         case 'KeyD':
         case 'ArrowRight':
           this.keys.right = false;
+          break;
+        case 'Space':
+          this.keys.jump = false;
           break;
       }
     });
@@ -134,6 +141,7 @@ export class InputManager {
       moveY,
       lookDeltaX: this.mouseDeltaX,
       lookDeltaY: this.mouseDeltaY,
+      jump: this.keys.jump,
     };
 
     // Reset mouse delta

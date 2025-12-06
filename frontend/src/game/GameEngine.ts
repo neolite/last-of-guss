@@ -17,6 +17,13 @@ class LocalPlayer {
   private readonly capsuleRadius = 0.5; // Player radius
   private readonly capsuleHeight = 1.8; // Player height
 
+  // Jump mechanics (double jump + air control)
+  private isOnGround = false;
+  private jumpsLeft = 2; // Double jump
+  private readonly JUMP_FORCE = 7.0;
+  private readonly GRAVITY = -20.0;
+  private readonly AIR_CONTROL = 0.3; // Air strafe control
+
   constructor(scene: THREE.Scene) {
     this.position = new THREE.Vector3(0, 1, 0);
     this.rotation = new THREE.Euler(0, 0, 0, 'YXZ');
@@ -33,7 +40,7 @@ class LocalPlayer {
 
   // Apply movement (client-side prediction)
   // NOTE: Called every frame (60fps) for smooth movement
-  applyMovement(moveX: number, moveY: number, lookDeltaX: number, lookDeltaY: number, dt: number) {
+  applyMovement(moveX: number, moveY: number, lookDeltaX: number, lookDeltaY: number, jump: boolean, dt: number) {
     const MOVE_SPEED = 5.0;
     const MOUSE_SENSITIVITY = 0.002;
 
@@ -56,18 +63,31 @@ class LocalPlayer {
       -Math.sin(this.rotation.y)
     );
 
-    // Apply movement (accelerate velocity)
-    const moveForce = MOVE_SPEED * dt;
+    // Apply movement (ground vs air control)
+    const moveForce = this.isOnGround ? MOVE_SPEED * dt : MOVE_SPEED * dt * this.AIR_CONTROL;
     this.velocity.x += (forward.x * moveY + right.x * moveX) * moveForce;
     this.velocity.z += (forward.z * moveY + right.z * moveX) * moveForce;
 
-    // Update position (NOTE: friction is NOT applied here - only on server reconciliation)
+    // Apply gravity
+    this.velocity.y += this.GRAVITY * dt;
+
+    // Jump (double jump)
+    if (jump && this.jumpsLeft > 0) {
+      this.velocity.y = this.JUMP_FORCE;
+      this.jumpsLeft--;
+    }
+
+    // Update position
     this.position.add(this.velocity.clone().multiplyScalar(dt));
 
-    // Ground constraint
-    if (this.position.y < 1) {
+    // Ground constraint and jump reset
+    if (this.position.y <= 1) {
       this.position.y = 1;
       this.velocity.y = 0;
+      this.isOnGround = true;
+      this.jumpsLeft = 2; // Reset double jump on ground
+    } else {
+      this.isOnGround = false;
     }
 
     // World bounds (discounter map 30x40)
@@ -1096,6 +1116,7 @@ export class GameEngine {
         inputState.moveY,
         inputState.lookDeltaX,
         inputState.lookDeltaY,
+        inputState.jump,
         dt
       );
 
