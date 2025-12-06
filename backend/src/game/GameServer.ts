@@ -17,14 +17,14 @@ export class GameServer {
 
     // WebSocket endpoint for prototype
     // In full version, this would be /ws/game/:sessionId
-    this.app.get('/ws/game', { websocket: true }, (connection: { socket: WebSocket }, req) => {
+    this.app.get('/ws/game', { websocket: true }, (connection: WebSocket, req) => {
       this.handleConnection(connection, req);
     });
 
     console.log('[GameServer] WebSocket routes registered at /ws/game');
   }
 
-  private handleConnection(connection: { socket: WebSocket }, req: any) {
+  private handleConnection(connection: WebSocket, req: any) {
     console.log('[GameServer] New WebSocket connection');
 
     // Generate player ID and name (in real version, get from JWT auth)
@@ -40,9 +40,7 @@ export class GameServer {
     }
 
     // Add player to session
-    // In @fastify/websocket v11+, connection.socket may be undefined - use connection directly
-    const socket = (connection as any).socket || connection;
-    session.addPlayer(playerId, playerName, socket);
+    session.addPlayer(playerId, playerName, connection);
 
     // Clean up empty sessions periodically
     connection.on('close', () => {
